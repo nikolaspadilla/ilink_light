@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 — 2026-10-27
+
+- Await light-platform setup before reporting the integration ready, retaining Home Assistant's setup lock until platform loading finishes.
+- Propagate platform setup failures through the integration setup call instead of leaving them in a detached background task.
+- Add lifecycle tests for setup ordering, error propagation, and existing device identity.
+
 ## 1.0.2 — 2026-10-27
 
 - Use Home Assistant's recommended `bleak_retry_connector.establish_connection` helper and cached-service client instead of direct `BleakClient.connect()` calls.

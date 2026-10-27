@@ -33,10 +33,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator = LightCoordinator(hass, device.id, conf)
         hass.data[DOMAIN][CONF_DEVICES][device_id] = coordinator
 
-    # Forward the setup to the platforms.
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    )
+    # Keep setup under Home Assistant's setup lock until platforms are ready.
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Set up options listener
     entry.async_on_unload(entry.add_update_listener(update_listener))
@@ -101,3 +99,4 @@ async def async_remove_config_entry_device(
     hass.config_entries.async_update_entry(config_entry, data=new_data)
 
     return True
+
