@@ -7,13 +7,13 @@
 			"service_uuid": "0000a032-0000-1000-8000-00805f9b34fb"
 		}
 	],
-	"codeowners": ["@donandren", "@muddxyii"],
+	"codeowners": ["@donandren", "@nikolaspadilla"],
 	"config_flow": true,
 	"dependencies": ["bluetooth"],
-	"documentation": "https://github.com/muddxyii/ilink_light",
+	"documentation": "https://github.com/nikolaspadilla/ilink_light",
 	"homeassistant": "2024.1.0",
 	"iot_class": "local_push",
-	"issue_tracker": "https://github.com/muddxyii/ilink_light/issues",
+	"issue_tracker": "https://github.com/nikolaspadilla/ilink_light/issues",
 	"requirements": [],
-	"version": "1.0.0"
+	"version": "1.0.1"
 }
