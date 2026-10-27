@@ -1,7 +1,8 @@
 import asyncio
 from typing import Awaitable, Callable
 
-from bleak import BleakClient, BleakGATTCharacteristic, BLEDevice
+from bleak import BleakGATTCharacteristic, BLEDevice
+from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from bleak.exc import BleakError
 from home_assistant_bluetooth import BluetoothServiceInfoBleak
 
@@ -109,44 +110,47 @@ class LightBtClient:
         finally:
             self._current_connect = None
 
+    def _get_ble_device(self) -> BLEDevice | None:
+        """Resolve the current connectable route, retaining the last known device."""
+        device = bluetooth.async_ble_device_from_address(
+            self._hass, self._address.upper(), connectable=True
+        )
+        if device is not None:
+            self._ble_device = device
+        return self._ble_device
+
     async def _connect(self, retries=3) -> bool:
         if self.is_connected():
             return True
-        if self._connecting:
+        if self._connecting or retries < 1:
             return False
 
-        tries = 0
         self._connecting = True
-
         LOGGER.debug("Connecting to %s", self._address)
-        while tries < retries:
-            tries += 1
-
-            try:
-                if self._bt_client is None:
-                    ble_device = bluetooth.async_ble_device_from_address(
-                        self._hass, self._address.upper()
-                    )
-                    if ble_device:
-                        self._ble_device = ble_device
-                    if not self._ble_device:
-                        raise BleakError(
-                            f"A device with address {self._address} could not be found."
-                        )
-                    self._bt_client = BleakClient(self._ble_device)
-                ret = await self._bt_client.connect()
-                if ret:
-                    LOGGER.debug("Connected to %s", self._address)
-                    await self._initialize()
-                    break
-            except Exception as e:
-                if tries == retries:
-                    LOGGER.info("Not able to connect to %s! %s", self._address, str(e))
-                else:
-                    LOGGER.debug("Retrying %s", self._address)
-                    await asyncio.sleep(1)
-        self._connecting = False
-        return self.is_connected()
+        try:
+            device = self._get_ble_device()
+            if device is None:
+                raise BleakError(
+                    f"A device with address {self._address} could not be found."
+                )
+            # The Bluetooth dependency supplies bleak-retry-connector. It handles
+            # transient failures and returns a connected client, not a boolean.
+            self._bt_client = await establish_connection(
+                BleakClientWithServiceCache,
+                device,
+                self._address,
+                max_attempts=retries,
+                ble_device_callback=self._get_ble_device,
+            )
+            if self.is_connected():
+                LOGGER.debug("Connected to %s", self._address)
+                await self._initialize()
+            return self.is_connected()
+        except Exception as err:
+            LOGGER.info("Not able to connect to %s! %s", self._address, str(err))
+            return False
+        finally:
+            self._connecting = False
 
     async def disconnect(
         self, force: bool = False, only_if_needed: bool = False
@@ -249,3 +253,4 @@ class LightBtClient:
     async def turn_off(self) -> None:
         LOGGER.debug("turn_off")
         await self._send_command(Commands.off())
+
